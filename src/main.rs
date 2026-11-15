@@ -1,11 +1,9 @@
-use std::env;
-
+mod utils;
 mod init;
 use init::main_init;
 
 fn main() {
-    main_init::initialize();
+    let directories = main_init::initialize();
+    println!("{:?}", directories);
 
-    let args = env::args();
-    println!("{:?}", args)
 }
