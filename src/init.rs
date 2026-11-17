@@ -2,6 +2,7 @@
 pub mod main_init { 
     use std::fs::*;
     use std::env;
+    use std::io::Error;
     use std::path::PathBuf;
 
     #[derive(PartialEq, Eq)]
@@ -16,7 +17,7 @@ pub mod main_init {
         let args: Vec<String> = env::args().collect();
         let mode: Mode = select_mode(args.get(1).expect("Mode is not specified"));
         if mode == Mode::Error { return Err(()); };
-        let directories = get_directories(PathBuf::from(args.get(2).expect("Directory is not specified")));
+        let directories = get_directories(PathBuf::from(args.get(2).expect("Directory is not specified"))).expect("aaaa");
         return Ok(directories); 
     }
     fn select_mode(mode: &String) -> Mode {
@@ -28,7 +29,23 @@ pub mod main_init {
         };
         return result;
     }
-    fn get_directories(mut directory: PathBuf) -> Vec<DirEntry> {
+    fn get_directories(directory: PathBuf) -> Result<Vec<DirEntry>, Error> {
+        let mut result = Vec::new();
+        let mut stack: Vec<PathBuf> = vec![directory];
+
+        while let Some(current_directory) = stack.pop() {
+            for entry in read_dir(current_directory).expect("This is not a directory") {
+                let entry = entry?;
+                if entry.file_type()?.is_dir() {
+                    stack.push(entry.path());
+                } else {
+                    result.push(entry);
+                }
+            }
+        }
+        return Ok(result);
+    }
+    /*fn get_directories_depr(directory: PathBuf) -> Vec<DirEntry> {
         // my shitty replacement for recursion
         let mut buffer: Vec<DirEntry> = vec![];
         loop {
@@ -51,5 +68,5 @@ pub mod main_init {
             break;
         };
         return buffer;
-    }
+    }*/
 }
