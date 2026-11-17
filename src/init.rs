@@ -1,8 +1,7 @@
-
+// РАБОТАЕТ - НЕ ТРОГАЙ
 pub mod main_init { 
-    use std::fs;
+    use std::fs::*;
     use std::env;
-    use std::mem;
     use std::path::PathBuf;
 
     #[derive(PartialEq, Eq)]
@@ -12,12 +11,12 @@ pub mod main_init {
         Run,
         Error
     }
-    pub fn initialize() -> Result<Vec<fs::DirEntry>, ()> {
+    pub fn initialize() -> Result<Vec<DirEntry>, ()> {    //replace unit with enum
         //get args from terminal (path, args)
         let args: Vec<String> = env::args().collect();
-        let mode: Mode = select_mode(&args[1]);
+        let mode: Mode = select_mode(args.get(1).expect("Mode is not specified"));
         if mode == Mode::Error { return Err(()); };
-        let directories = check_files(PathBuf::from(args[2].clone())); // remove clone
+        let directories = get_directories(PathBuf::from(args.get(2).expect("Directory is not specified")));
         return Ok(directories); 
     }
     fn select_mode(mode: &String) -> Mode {
@@ -29,22 +28,28 @@ pub mod main_init {
         };
         return result;
     }
-    fn get_directories(directory: PathBuf) -> Vec<fs::DirEntry> {
-        let read_directory: fs::ReadDir = fs::read_dir(directory).expect("This is not a directory");
-        let directory_entry: Vec<fs::DirEntry> = read_directory.map( |result| result.expect("aaa") ).collect();
-        //println!("{:?}", directory_entry);
-        return directory_entry;
-    }
-    fn check_files(directory: PathBuf) -> Vec<fs::DirEntry> {
-        let directories: &mut Vec<fs::DirEntry> = &mut get_directories(directory);
-        let mut i = 0;
-        while i < directories.len() {
-            let file_type = directories[i].file_type().expect("Smth went wrong ig");
-            if file_type.is_dir() {
-                directories.append(&mut check_files(directories[i].path()))
+    fn get_directories(mut directory: PathBuf) -> Vec<DirEntry> {
+        // my shitty replacement for recursion
+        let mut buffer: Vec<DirEntry> = vec![];
+        loop {
+            let mut tracker = false;
+            let read_directory = read_dir(&directory).expect("This is not a directory");
+            for entry in read_directory {
+                let entry = entry.expect("a");
+                let is_dir: bool = entry.file_type().expect("b").is_dir();
+                if is_dir {
+                    directory = entry.path();
+                    tracker = true;
+                }
+                if !is_dir {
+                    buffer.push(entry);
+                }
             }
-            i += 1;
-        }
-        return mem::replace(directories, Vec::new());
+            if tracker == true {
+                continue;
+            }
+            break;
+        };
+        return buffer;
     }
 }
