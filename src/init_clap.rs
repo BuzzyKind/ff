@@ -20,6 +20,9 @@ pub mod main_init {
     struct Input {
         mode: Mode,
         directory: PathBuf,
+
+        #[arg(short, long)]
+        search_in_folders: bool,
         
         //#[arg(env = "frog_ff", default_value = r".\target\release\frog.exe")]    // experiment
         //exe_path: PathBuf,
@@ -36,7 +39,19 @@ pub mod main_init {
         // get args from terminal
         //let args: Vec<String> = env::args().skip(1).collect();
         let parsed: Input = Input::parse();
-        return Init_Return { files: get_files(parsed.directory).expect("rrr"), mode: parsed.mode };
+
+        let files = if parsed.search_in_folders == true { 
+            get_files(parsed.directory).expect("rrr") 
+        } else { get_files_wo_recursion(parsed.directory) };
+
+        return Init_Return { files: files, mode: parsed.mode };
+    }
+    fn get_files_wo_recursion(directory: PathBuf) -> Vec<DirEntry> {
+        return read_dir(directory).expect("Directory is invalid or not specified")
+                                          .into_iter()
+                                          .map(|dir| dir.expect("a"))
+                                          .filter(|dir| !dir.file_type().expect("b").is_dir())
+                                          .collect();
     }
     fn get_files_walkdir_compact(directory: PathBuf) -> Vec<DirEntry_Walk> {
         return WalkDir::new(directory).into_iter()
@@ -56,7 +71,7 @@ pub mod main_init {
         }
         return Ok(result);
     }
-    fn get_files_wo_recursion(directory: PathBuf) -> Result<Vec<DirEntry>, Error> {
+    fn get_files_custom_stack(directory: PathBuf) -> Result<Vec<DirEntry>, Error> {
         let mut result = Vec::new();
         let mut stack: Vec<PathBuf> = vec![directory];
 
