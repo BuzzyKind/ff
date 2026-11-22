@@ -5,6 +5,7 @@ pub mod main_init {
     use std::fs::*;
     use std::path::PathBuf;
     use std::io::Error;
+    use std::ffi::OsStr;
     use clap::*;   // specify exact imports
     use walkdir::WalkDir;
     use walkdir::DirEntry as DirEntry_Walk; // walkdir is an experimental option
@@ -32,26 +33,45 @@ pub mod main_init {
     }
     #[derive(Debug)]
     pub struct Init_Return {
-        pub files: Vec<DirEntry>,
+        pub files: Vec<PathBuf>,
         pub mode: Mode,
     }
     pub fn initialize() -> Init_Return {
         // get args from terminal
         //let args: Vec<String> = env::args().skip(1).collect();
+
         let parsed: Input = Input::parse();
 
-        let files = if parsed.search_in_folders == true { 
+        return match parsed.mode {
+            Mode::run | Mode::build | Mode::check => manage_files(parsed),
+            _                                     => todo!("Implement other modes"),
+        };
+    }
+    fn manage_files(parsed: Input) -> Init_Return {
+
+        let files = if parsed.search_in_folders { 
             get_files(parsed.directory).expect("rrr") 
-        } else { get_files_wo_recursion(parsed.directory) };
+        } else { 
+            get_files_wo_recursion(parsed.directory)
+        };
 
         return Init_Return { files: files, mode: parsed.mode };
     }
-    fn get_files_wo_recursion(directory: PathBuf) -> Vec<DirEntry> {
+    fn check_extension(dir: &PathBuf) -> bool {
+        dir.extension()
+           .and_then(OsStr::to_str)
+           .map(|ext| ext.split(".").last()
+                                    .unwrap()
+                                    .eq_ignore_ascii_case("ff"))
+            .unwrap_or(false)
+    }
+    fn get_files_wo_recursion(directory: PathBuf) -> Vec<PathBuf> {  // compact version / TODO: experiment with different versions
         return read_dir(directory).expect("Directory is invalid or not specified")
-                                          .into_iter()
-                                          .map(|dir| dir.expect("a"))
-                                          .filter(|dir| !dir.file_type().expect("b").is_dir())
-                                          .collect();
+                                    .into_iter()
+                                    .map(|dir| dir.expect("a"))
+                                    .filter(|dir| !dir.file_type().expect("b").is_dir() && check_extension(&dir.path()))
+                                    .map(|dir| dir.path())
+                                    .collect();
     }
     fn get_files_walkdir_compact(directory: PathBuf) -> Vec<DirEntry_Walk> {
         return WalkDir::new(directory).into_iter()
@@ -88,15 +108,16 @@ pub mod main_init {
         return Ok(result);
     }
     // stack overflow >:]
-    fn get_files(directory: PathBuf) -> Result<Vec<DirEntry>, Error> {
-        let mut result: Vec<DirEntry> = vec![];
-        for entry in read_dir(directory).expect("Directory is invalid or not specified") {
+    fn get_files(directory: PathBuf) -> Result<Vec<PathBuf>, Error> {
+        let mut result: Vec<PathBuf> = vec![];
+        for entry in read_dir(&directory).expect("Directory is invalid or not specified") {
             let entry = entry?;
+            let path = entry.path();
             if entry.file_type()?.is_dir() {
-                result.append(&mut get_files(entry.path()).unwrap())
-            } else {
-                result.push(entry);
-            }
+                result.append(&mut get_files(path).unwrap());
+            } else if check_extension(&path) {
+                result.push(path);
+            } else { }
         }
         return Ok(result);
     }
