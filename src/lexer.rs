@@ -1,17 +1,13 @@
 pub mod main_lexer {
     use std::fs::*;
     use std::thread;
+    use std::sync::{Mutex, LazyLock};
     use std::path::PathBuf;
-    use std::sync::Mutex;
     use std::any::type_name;
     use std::iter::Enumerate;
     use std::io::{BufReader, BufRead};
+    use indexmap::IndexSet;
 
-    #[derive(Debug)]
-    pub struct SymbolTableEntry {
-        is_empty: bool,
-        name: String,
-    }
     #[derive(Debug)]
     pub enum TokenType {
         Colon,             // :
@@ -49,7 +45,7 @@ pub mod main_lexer {
     #[derive(Debug)]
     pub struct TokenizedCode {
         tokens: Vec<Token>,
-        symbol_table: Vec<SymbolTableEntry>,
+        symbol_table: Vec<String>,
     }
     pub fn test(files: Vec<PathBuf>) -> Vec<Token> {
         return run_lexer(files);
@@ -57,7 +53,7 @@ pub mod main_lexer {
     /*pub fn run_lexer(files: Vec<DirEntry>) -> TokenizedCode {
         let unwrapped = unwrap_files(files);
         }*/
-    static SYMBOL_TABLE: Mutex<Vec<SymbolTableEntry>> = Mutex::new(Vec::new());
+    static SYMBOL_TABLE: LazyLock<Mutex<IndexSet<String>>> = LazyLock::new(|| Mutex::new(IndexSet::new()));
     fn run_lexer(files: Vec<PathBuf>) -> Vec<Token> {
         let mut handles: Vec<_> = vec![];
         let mut result = vec![];
@@ -164,12 +160,15 @@ pub mod main_lexer {
         return token_vec;
     }
     fn get_name_from_symbol_table(name: String) -> usize {
-        for ( i, entry ) in SYMBOL_TABLE.lock().unwrap().iter().enumerate() {
+        SYMBOL_TABLE.lock().unwrap().insert(name.clone()); // remove clone
+
+        let index = SYMBOL_TABLE.lock().unwrap().get_index_of(&name);
+        if index.is_some() {
+            return index.unwrap();
+        } else { return 0; }
+        /*for ( i, entry ) in SYMBOL_TABLE.lock().unwrap().iter().enumerate() {
             return SYMBOL_TABLE.lock().unwrap().iter().position(|_| entry.name == name ).unwrap_or(0);
-        }
-        return 0;
+        }*/
+        //return 0;
     }
-    /*fn is_name(var: char) -> bool {
-        var.is_alphanumeric() || var == '_'
-    }*/
 }
