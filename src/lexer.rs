@@ -103,11 +103,10 @@ pub mod main_lexer {
         let mut token_vec: Vec<Token> = vec![];
         let mut i: usize = 0;
         while i <= line.len() {
-
             let chars: Vec<char> = line.chars().collect();
             let mut name: usize = 0;
             let token_type = match chars.get(i) {
-                Some(':') => match chars.get(i + 1) { Some(':') => TokenType::NamespaceSymbol, Some(_) => TokenType::Colon, None => TokenType::Space},
+                Some(':') => match chars.get(i + 1) { Some(':') => TokenType::NamespaceSymbol, Some(_) | None => TokenType::Colon},
                 Some(' ') => TokenType::Space,
                 Some(letter) => {
                     name = get_name_from_symbol_table({
@@ -121,7 +120,7 @@ pub mod main_lexer {
                             i += 1;
                         }
                     }); 
-
+                    i -= 1;
                     TokenType::Name
                 },
                 None => return token_vec,
