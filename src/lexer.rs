@@ -57,7 +57,7 @@ pub mod main_lexer {
     /*pub fn run_lexer(files: Vec<DirEntry>) -> TokenizedCode {
         let unwrapped = unwrap_files(files);
         }*/
-    static symbol_table: Mutex<Vec<SymbolTableEntry>> = Mutex::new(Vec::new());
+    static SYMBOL_TABLE: Mutex<Vec<SymbolTableEntry>> = Mutex::new(Vec::new());
     fn run_lexer(files: Vec<PathBuf>) -> Vec<Token> {
         let mut handles: Vec<_> = vec![];
         let mut result = vec![];
@@ -106,7 +106,18 @@ pub mod main_lexer {
             let chars: Vec<char> = line.chars().collect();
             let mut name: usize = 0;
             let token_type = match chars.get(i) {
-                Some(':') => match chars.get(i + 1) { Some(':') => TokenType::NamespaceSymbol, Some(_) | None => TokenType::Colon},
+                Some(':') => match chars.get(i + 1) { Some(':') => { i += 1; TokenType::NamespaceSymbol }, Some(_) | None => TokenType::Colon},
+                Some('=') => TokenType::EqualsSign,
+                Some(';') => TokenType::Semicolon,         
+                Some('{') => TokenType::LeftBrace,         
+                Some('}') => TokenType::RightBrace,        
+                Some('\'') => TokenType::Apostrophe,       
+                Some('.') => TokenType::Dot,               
+                Some('(') => TokenType::LeftBracket,       
+                Some(')') => TokenType::RightBracket,      
+                Some('-') => match chars.get(i + 1) { Some('>') => { i += 1; TokenType::RightArrow }, Some(_) | None => TokenType::Caret},    
+                Some('_') => TokenType::Commander,         
+                Some('*') => TokenType::Kind,                    
                 Some(' ') => TokenType::Space,
                 Some(letter) => {
                     name = get_name_from_symbol_table({
@@ -153,8 +164,8 @@ pub mod main_lexer {
         return token_vec;
     }
     fn get_name_from_symbol_table(name: String) -> usize {
-        for ( i, entry ) in symbol_table.lock().unwrap().iter().enumerate() {
-            return symbol_table.lock().unwrap().iter().position(|_| entry.name == name ).unwrap_or(0);
+        for ( i, entry ) in SYMBOL_TABLE.lock().unwrap().iter().enumerate() {
+            return SYMBOL_TABLE.lock().unwrap().iter().position(|_| entry.name == name ).unwrap_or(0);
         }
         return 0;
     }
